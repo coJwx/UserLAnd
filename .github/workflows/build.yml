@@ -16,35 +16,18 @@ jobs:
       with:
         submodules: recursive
 
-    # 第一步：检查项目使用的 Gradle 版本
-    - name: Check Gradle Wrapper Version
-      run: |
-        if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
-          echo "Current Gradle version in wrapper:"
-          grep distributionUrl gradle/wrapper/gradle-wrapper.properties
-        else
-          echo "No gradle-wrapper.properties found"
-        fi
-
-    # 第二步：设置合适的 Java 版本
-    - name: Set up JDK
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        # 根据你的 Gradle 版本选择合适的 JDK
-        # Gradle 7.x+ 支持 JDK 17，Gradle 8.x+ 支持 JDK 20
-        # 这里使用 JDK 11，它兼容大多数 Gradle 版本
-        java-version: '11'
+        java-version: '17'
         distribution: 'temurin'
 
-    # 第三步：设置 Android SDK（使用官方推荐方式）
+    # 使用官方的 Android Setup Action
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v2.0.11
-      with:
-        # 明确指定组件版本以避免冲突
-        cmdline-tools-version: 'latest'
-        build-tools-version: '34.0.0'
-        platforms-version: 'android-34'
-        ndk-version: '25.2.9519653'
+      uses: android-actions/setup-android@v3  # 升级到 v3
+      # 或者使用 GitHub 官方的：
+    # - name: Setup Android SDK
+    #   uses: android-actions/setup-android@v2.0.10
 
     - name: Cache Gradle packages
       uses: actions/cache@v4
@@ -59,43 +42,20 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x ./gradlew
 
-    # 可选：如果 Gradle 版本太旧，可以先升级 Gradle Wrapper
-    - name: Upgrade Gradle Wrapper (if needed)
+    # 确认 Android SDK 配置
+    - name: Check Android SDK
       run: |
-        # 检查当前 Gradle 版本，如果太旧就升级
-        CURRENT_GRADLE_VERSION=$(grep -oP 'gradle-\K[0-9.]+' gradle/wrapper/gradle-wrapper.properties || echo "0")
-        echo "Current Gradle version: $CURRENT_GRADLE_VERSION"
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+        ls -la $ANDROID_HOME/cmdline-tools/
         
-        # 如果版本低于 7.0，建议升级到至少 7.6.x 以支持 JDK 17
-        if [[ "$CURRENT_GRADLE_VERSION" < "7.0" ]]; then
-          echo "Upgrading Gradle wrapper to version 8.5..."
-          # 使用 gradlew wrapper 命令升级
-          ./gradlew wrapper --gradle-version=8.5 --distribution-type=all || echo "Gradle upgrade failed, continuing with existing version"
-        fi
-      continue-on-error: true
-
-    # 验证环境
-    - name: Verify Environment
-      run: |
-        echo "Java version:"
-        java -version
-        echo ""
-        echo "Android SDK version:"
-        sdkmanager --version || echo "sdkmanager not found"
-        echo ""
-        echo "Gradle version:"
-        ./gradlew --version || echo "Cannot run gradlew"
-
     # Build debug APK
     - name: Build Debug APK
-      run: |
-        # 清理缓存以确保使用正确的 Gradle 版本
-        ./gradlew clean
-        ./gradlew assembleDebug --stacktrace
+      run: ./gradlew assembleDebug
 
     # Run tests
     - name: Run Unit Tests
-      run: ./gradlew testDebugUnitTest --stacktrace
+      run: ./gradlew testDebugUnitTest
 
     # Upload debug APK as artifact
     - name: Upload Debug APK
@@ -104,12 +64,6 @@ jobs:
         name: debug-apk
         path: app/build/outputs/apk/debug/*.apk
 
-    # 如果构建成功，也可以运行其他检查
-    - name: Lint Check
-      run: ./gradlew lintDebug --stacktrace
-      continue-on-error: true
-
-  # Release job - only runs on tags
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -120,18 +74,15 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Set up JDK
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '11'
+        java-version: '17'
         distribution: 'temurin'
 
+    # 使用官方的 Android Setup Action
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v2.0.11
-      with:
-        cmdline-tools-version: 'latest'
-        build-tools-version: '34.0.0'
-        platforms-version: 'android-34'
+      uses: android-actions/setup-android@v3
 
     - name: Cache Gradle packages
       uses: actions/cache@v4
@@ -140,19 +91,15 @@ jobs:
           ~/.gradle/caches
           ~/.gradle/wrapper
         key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
 
     - name: Make gradlew executable
       run: chmod +x ./gradlew
 
     # Build release APK
     - name: Build Release APK
-      run: |
-        ./gradlew clean
-        ./gradlew assembleRelease --stacktrace
+      run: ./gradlew assembleRelease
 
-    # Sign APK (需要先配置相应的 GitHub secrets)
+    # Sign APK
     - name: Sign Release APK
       if: github.event_name != 'pull_request'
       uses: r0adkll/sign-android-release@v1
