@@ -162,17 +162,18 @@ class MainActivity : AppCompatActivity(), SessionListFragment.SessionSelection, 
         setupWithNavController(bottom_nav_view, navController)
 
         val promptViewHolder = findViewById<ViewGroup>(R.id.layout_user_prompt_insert)
-        if (userFeedbackPrompter.viewShouldBeShown()) {
-            userFeedbackPrompter.showView()
-        }
+        // 禁用所有用户提示弹窗：评分/反馈请求、捐款请求、错误报告收集
+        // if (userFeedbackPrompter.viewShouldBeShown()) {
+        //     userFeedbackPrompter.showView()
+        // }
 
-        if (optInPrompter.viewShouldBeShown()) {
-            optInPrompter.showView()
-        }
+        // if (optInPrompter.viewShouldBeShown()) {
+        //     optInPrompter.showView()
+        // }
 
-        if (contributionPrompter.viewShouldBeShown()) {
-            contributionPrompter.showView()
-        }
+        // if (contributionPrompter.viewShouldBeShown()) {
+        //     contributionPrompter.showView()
+        // }
 
         handleQWarning()
 
