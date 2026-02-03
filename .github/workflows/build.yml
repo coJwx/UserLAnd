@@ -12,101 +12,91 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - uses: actions/checkout@v4
+        with:
+          submodules: true # 非递归拉取子模块（按需改为recursive）
 
-    - name: Set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
+      - name: Set up JDK 8 # 修复：匹配原项目JDK 1.8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          cache: gradle # 内置Gradle缓存，简化配置
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
+      - name: Setup Android SDK (API 29) # 修复：指定原项目SDK版本
+        uses: android-actions/setup-android@v2.2.0 # 优化：锁定具体版本
+        with:
+          api-levels: 29 # 原项目compileSdk/targetSdk 29
+          build-tools: 29.0.3 # 匹配API 29的构建工具
+          ndk: 21.4.7075529 # 可选：原项目若用NDK，指定对应版本
 
-    - name: Cache Gradle packages
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-    - name: Make gradlew executable
-      run: chmod +x ./gradlew
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
-    # Build debug APK (no signing required)
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      - name: Build Debug & Release APK # 优化：一次构建两种包，避免重复
+        run: ./gradlew assembleDebug assembleRelease --no-daemon --parallel # 加优化参数
 
-    # Run tests
-    - name: Run Unit Tests
-      run: ./gradlew testDebugUnitTest
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest --no-daemon
 
-    # Upload debug APK as artifact
-    - name: Upload Debug APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: debug-apk
-        path: app/build/outputs/apk/debug/*.apk
+      - name: Upload Test Report # 修复：上传测试报告，方便排查
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: app/build/reports/tests/
+          retention-days: 7 # 优化：7天自动清理
 
-  # Release job - only runs on tags
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+      - name: Upload Unsigned Release APK # 修复：上传未签名Release包，供release任务复用
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 7
+
   release:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Download Unsigned Release APK from Build # 修复：复用build产物，不再重新构建
+        uses: actions/download-artifact@v4
+        with:
+          name: unsigned-release-apk
+          path: app/build/outputs/apk/release/
 
-    - name: Set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
+      - name: Sign Release APK (if secrets exist) # 修复：增加秘钥容错，多余条件删除
+        if: ${{ secrets.SIGNING_KEY && secrets.ALIAS && secrets.KEY_STORE_PASSWORD && secrets.KEY_PASSWORD }}
+        uses: r0adkll/sign-android-release@v1.2.0 # 优化：锁定具体版本
+        with:
+          releaseDirectory: app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
-
-    - name: Cache Gradle packages
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-
-    - name: Make gradlew executable
-      run: chmod +x ./gradlew
-
-    # Build release APK (unsigned)
-    - name: Build Release APK
-      run: ./gradlew assembleRelease
-
-    # Sign APK using GitHub secrets (optional)
-    - name: Sign Release APK
-      if: github.event_name != 'pull_request'
-      uses: r0adkll/sign-android-release@v1
-      with:
-        releaseDirectory: app/build/outputs/apk/release
-        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-        alias: ${{ secrets.ALIAS }}
-        keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-        keyPassword: ${{ secrets.KEY_PASSWORD }}
-
-    # Create GitHub Release
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          app/build/outputs/apk/debug/*.apk
-          app/build/outputs/apk/release/*-signed.apk
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release # 修复：分情况上传文件，避免无签名包失败
+        uses: softprops/action-gh-release@v2 # 修复：升级到最新稳定版
+        with:
+          # 优化：有签名包传签名包，无则传未签名包（降级方案）
+          files: ${{ secrets.SIGNING_KEY ? 'app/build/outputs/apk/release/*-signed.apk' : 'app/build/outputs/apk/release/*.apk' }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
