@@ -70,6 +70,13 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           retention-days: 7
 
+      - name: Upload Debug APK for Release # 修复：上传debug包供release任务使用
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk-for-release
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -81,9 +88,29 @@ jobs:
           name: unsigned-release-apk
           path: app/build/outputs/apk/release/
 
-      - name: Sign Release APK (if secrets exist) # 修复：增加秘钥容错，多余条件删除
-        if: ${{ secrets.SIGNING_KEY && secrets.ALIAS && secrets.KEY_STORE_PASSWORD && secrets.KEY_PASSWORD }}
-        uses: r0adkll/sign-android-release@v1.2.0 # 优化：锁定具体版本
+      - name: Download Debug APK from Build # 修复：下载debug包
+        uses: actions/download-artifact@v4
+        with:
+          name: debug-apk-for-release
+          path: app/build/outputs/apk/debug/
+
+      - name: Check Signing Secrets # 修复：使用环境变量检查secrets是否存在
+        id: check_secrets
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          ALIAS: ${{ secrets.ALIAS }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$SIGNING_KEY" ] && [ -n "$ALIAS" ] && [ -n "$KEY_STORE_PASSWORD" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Sign Release APK # 修复：使用输出变量控制条件
+        if: steps.check_secrets.outputs.has_secrets == 'true'
+        uses: r0adkll/sign-android-release@v1.2.0
         with:
           releaseDirectory: app/build/outputs/apk/release
           signingKeyBase64: ${{ secrets.SIGNING_KEY }}
@@ -91,12 +118,20 @@ jobs:
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Create GitHub Release # 修复：分情况上传文件，避免无签名包失败
-        uses: softprops/action-gh-release@v2 # 修复：升级到最新稳定版
+      - name: Prepare Release Files # 修复：根据签名情况准备发布文件
+        run: |
+          mkdir -p release-files
+          cp app/build/outputs/apk/debug/*.apk release-files/
+          if [ "${{ steps.check_secrets.outputs.has_secrets }}" == "true" ]; then
+            cp app/build/outputs/apk/release/*-signed.apk release-files/
+          else
+            cp app/build/outputs/apk/release/*.apk release-files/
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          files: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*-signed.apk
+          files: release-files/*.apk
           draft: false
           prerelease: false
         env:
