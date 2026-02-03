@@ -94,8 +94,9 @@ jobs:
       - name: Create GitHub Release # 修复：分情况上传文件，避免无签名包失败
         uses: softprops/action-gh-release@v2 # 修复：升级到最新稳定版
         with:
-          # 优化：有签名包传签名包，无则传未签名包（降级方案）
-          files: ${{ secrets.SIGNING_KEY != '' ? 'app/build/outputs/apk/release/*-signed.apk' : 'app/build/outputs/apk/release/*.apk' }}
+          files: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*-signed.apk
           draft: false
           prerelease: false
         env:
