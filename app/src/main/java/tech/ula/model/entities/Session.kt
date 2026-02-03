@@ -80,7 +80,8 @@ data class Session(
     var port: Long = 2022, // TODO This can be removed. Any eventual port managing should be done at a high     er abstraction.
     var pid: Long = 0,
     var geometry: String = "",
-    val isAppsSession: Boolean = false
+    val isAppsSession: Boolean = false,
+    var autoFetchAssets: Boolean = true
 ) : Parcelable {
     override fun toString(): String {
         return "Session(id=$id, name=$name, filesystemId=$filesystemId, filesystemName=" +

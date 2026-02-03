@@ -36,6 +36,8 @@ class SessionStartupFsm(
     private val filesystemsLiveData = filesystemDao.getAllFilesystems()
     private val filesystems = mutableListOf<Filesystem>()
 
+    private var currentSession: Session? = null
+
     private val extractionLogger: (String) -> Unit = { line ->
         state.postValue(ExtractingFilesystem(line))
     }
@@ -131,11 +133,20 @@ class SessionStartupFsm(
             return
         }
 
+        currentSession = session
         val filesystem = findFilesystemForSession(session)
         state.postValue(SessionIsReadyForPreparation(session, filesystem))
     }
 
     private suspend fun handleRetrieveAssetLists(filesystem: Filesystem) {
+        // 如果 session 配置了不自动获取资产，且 filesystem 已经解压过，跳过远程资产列表获取
+        val session = currentSession
+        val filesystemAlreadyExtracted = filesystemManager.hasFilesystemBeenSuccessfullyExtracted("${filesystem.id}")
+        if (session?.autoFetchAssets == false && filesystemAlreadyExtracted) {
+            state.postValue(AssetListsRetrievalSucceeded(emptyList()))
+            return
+        }
+
         state.postValue(RetrievingAssetLists)
 
         val assetList = assetRepository.getAssetList(filesystem.distributionType)
@@ -149,6 +160,14 @@ class SessionStartupFsm(
     }
 
     private suspend fun handleGenerateDownloads(filesystem: Filesystem, assetList: List<Asset>) {
+        // 如果 session 配置了不自动获取资产，且 filesystem 已经解压过，跳过后续下载和校验
+        val session = currentSession
+        val filesystemAlreadyExtracted = filesystemManager.hasFilesystemBeenSuccessfullyExtracted("${filesystem.id}")
+        if (session?.autoFetchAssets == false && filesystemAlreadyExtracted) {
+            state.postValue(NoDownloadsRequired)
+            return
+        }
+
         state.postValue(GeneratingDownloadRequirements)
 
         val filesystemNeedsExtraction =

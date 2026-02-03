@@ -97,6 +97,17 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- Auto Fetch Assets Switch -->
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/switch_auto_fetch_assets"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/prompt_auto_fetch_assets"
+            app:layout_constraintTop_toBottomOf="@id/text_input_layout_username"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </ScrollView>

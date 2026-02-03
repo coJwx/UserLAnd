@@ -118,6 +118,7 @@
     <string name="prompt_service_type">Service Type:</string>
     <string name="prompt_client_type">Client Type:</string>
     <string name="prompt_app_connection_type_preference">Please select a connection type: </string>
+    <string name="prompt_auto_fetch_assets">Auto fetch latest assets on startup</string>
     <string name="prompt_select_backup">Select filesystem backup file</string>
     <string name="prompt_install_file_manager">Please install a File Manager</string>
 

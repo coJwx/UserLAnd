@@ -165,6 +165,12 @@ class SessionEditFragment : Fragment() {
             override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
             override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
         })
+
+        // Auto fetch assets switch
+        switch_auto_fetch_assets.isChecked = session.autoFetchAssets
+        switch_auto_fetch_assets.setOnCheckedChangeListener { _, isChecked ->
+            session.autoFetchAssets = isChecked
+        }
     }
 
     private fun insertSession() {
