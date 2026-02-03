@@ -23,12 +23,8 @@ jobs:
           distribution: 'temurin'
           cache: gradle # 内置Gradle缓存，简化配置
 
-      - name: Setup Android SDK (API 29) # 修复：指定原项目SDK版本
-        uses: android-actions/setup-android@v2.2.0 # 优化：锁定具体版本
-        with:
-          api-levels: 29 # 原项目compileSdk/targetSdk 29
-          build-tools: 29.0.3 # 匹配API 29的构建工具
-          ndk: 21.4.7075529 # 可选：原项目若用NDK，指定对应版本
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
