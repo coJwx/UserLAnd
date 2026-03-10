@@ -18,10 +18,5 @@ class HelpFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        userland_logo.setOnClickListener {
-            val intent = Intent("android.intent.action.VIEW", Uri.parse("https://userland.tech"))
-            startActivity(intent)
-        }
     }
 }
