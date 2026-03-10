@@ -14,19 +14,19 @@ class GithubAppsFetcher(
     private val logger: Logger = SentryLogger()
 ) {
 
-    // 本地assets目录路径
-    private val localAssetsPath = "UserLAnd-Assets-Support/apps"
-
     // Allows destructing of the list of application elements
     private operator fun <T> List<T>.component6() = get(5)
     private operator fun <T> List<T>.component7() = get(6)
 
+    private val branch = "master"
+    private val baseUrl = "https://gitee.com/crisJiang/UserLAnd-Assets-Support/raw/$branch/apps"
+
     @Throws(IOException::class)
     suspend fun fetchAppsList(): List<App> = withContext(Dispatchers.IO) {
         return@withContext try {
-            val file = File("$localAssetsPath/apps.txt")
-            val contents: List<String> = file.readLines()
+            val url = "$baseUrl/apps.txt"
             val numLinesToSkip = 1 // Skip first line which defines schema
+            val contents: List<String> = httpStream.toLines(url)
             contents.drop(numLinesToSkip).map { line ->
                 // Destructure app fields
                 val (
@@ -58,22 +58,22 @@ class GithubAppsFetcher(
 
     suspend fun fetchAppIcon(app: App) = withContext(Dispatchers.IO) {
         val directoryAndFilename = "${app.name}/${app.name}.png"
-        val sourceFile = File("$localAssetsPath/$directoryAndFilename")
-        val targetFile = File("$filesDirPath/apps/$directoryAndFilename")
-        sourceFile.copyTo(targetFile, overwrite = true)
+        val file = File("$filesDirPath/apps/$directoryAndFilename")
+        val url = "$baseUrl/$directoryAndFilename"
+        httpStream.toFile(url, file)
     }
 
     suspend fun fetchAppDescription(app: App) = withContext(Dispatchers.IO) {
         val directoryAndFilename = "${app.name}/${app.name}.txt"
-        val sourceFile = File("$localAssetsPath/$directoryAndFilename")
-        val targetFile = File("$filesDirPath/apps/$directoryAndFilename")
-        sourceFile.copyTo(targetFile, overwrite = true)
+        val url = "$baseUrl/$directoryAndFilename"
+        val file = File("$filesDirPath/apps/$directoryAndFilename")
+        httpStream.toTextFile(url, file)
     }
 
     suspend fun fetchAppScript(app: App) = withContext(Dispatchers.IO) {
         val directoryAndFilename = "${app.name}/${app.name}.sh"
-        val sourceFile = File("$localAssetsPath/$directoryAndFilename")
-        val targetFile = File("$filesDirPath/apps/$directoryAndFilename")
-        sourceFile.copyTo(targetFile, overwrite = true)
+        val url = "$baseUrl/$directoryAndFilename"
+        val file = File("$filesDirPath/apps/$directoryAndFilename")
+        httpStream.toTextFile(url, file)
     }
 }
