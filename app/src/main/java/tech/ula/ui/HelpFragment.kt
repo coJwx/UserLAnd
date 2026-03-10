@@ -19,11 +19,6 @@ class HelpFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        github_logo.setOnClickListener {
-            val intent = Intent("android.intent.action.VIEW", Uri.parse("https://chenye.pages.dev/proxy/github.com/CypherpunkArmory/UserLAnd/issues"))
-            startActivity(intent)
-        }
-
         userland_logo.setOnClickListener {
             val intent = Intent("android.intent.action.VIEW", Uri.parse("https://userland.tech"))
             startActivity(intent)
