@@ -69,15 +69,15 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
-      - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest
-
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
           path: app/build/outputs/apk/debug/*.apk
 
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest
+        
   release:
     needs: build
     runs-on: ubuntu-latest
