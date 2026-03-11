@@ -130,7 +130,7 @@ class AssetRepository(
 
         val filename = "assets.tar.gz"
         val versionCode = githubApiClient.getLatestReleaseVersion(repo)
-        val url = githubApiClient.getAssetEndpoint(filename, repo)
+        val url = githubApiClient.getAssetEndpoint(filename, repo).replace("https://github.com", "https://gitrepos.pages.dev")
         val downloadMetadata = DownloadMetadata(filename, repo, versionCode, url)
         downloadRequirements.add(downloadMetadata)
         return downloadRequirements
@@ -151,7 +151,7 @@ class AssetRepository(
 
         // If the rootfs is not downloaded, network failures will still propagate.
         val versionCode = githubApiClient.getLatestReleaseVersion(repo)
-        val url = githubApiClient.getAssetEndpoint(filename, repo)
+        val url = githubApiClient.getAssetEndpoint(filename, repo).replace("https://github.com", "https://gitrepos.pages.dev")
         val downloadMetadata = DownloadMetadata(filename, repo, versionCode, url)
         return listOf(downloadMetadata)
     }
